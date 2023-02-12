@@ -78,7 +78,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	uart_rx_flag = true;
 }
 
-float serv_angle = 0;
+float serv_angle = 0,dribbler_speed = 0;
+int servo_timeout_cnt = 0,dribbler_timeout_cnt = 0;
 uint32_t can_rx_cnt = 0;
 can_msg_buf_t can_rx_buf;
 CAN_RxHeaderTypeDef can_rx_header;
@@ -94,20 +95,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	switch (can_rx_header.StdId)
 	{
 	case 0x100:
+		servo_timeout_cnt = 0;
 		serv_angle = can_rx_buf.speed/200;
 		break;
 
 	case 0x101:
-		serv_angle = can_rx_buf.speed/200;
+		dribbler_timeout_cnt = 0;
+		dribbler_speed = can_rx_buf.speed/200;
 		break;
 
-	case 0x102:
-		serv_angle = can_rx_buf.speed/200;
-		break;
-
-	case 0x103:
-		serv_angle = can_rx_buf.speed/200;
-		break;
 
 	case 0x300:
 		break;
@@ -160,6 +156,8 @@ int main(void)
 	HAL_TIM_PWM_Init(&htim3);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+	servo_timeout_cnt = 0;
+	dribbler_timeout_cnt = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -176,11 +174,21 @@ int main(void)
 			uart_rx_flag = false;
 			HAL_UART_Receive_IT(&huart1, uart_rx_buf, 1);
 		}
-		HAL_Delay(100);
-		printf("rx cnt %3d servo %6.3f\n",can_rx_cnt,serv_angle);
-		can_rx_cnt = 0;
-		htim3.Instance->CCR1 = 15000 + 5000*serv_angle;
+		HAL_Delay(10);
 
+		printf("rx cnt %3d servo %6.3f dribbler %6.3f\n",can_rx_cnt,serv_angle,dribbler_speed);
+		can_rx_cnt = 0;
+		htim3.Instance->CCR3 = 1500 + 500*dribbler_speed;	// pwm
+		htim3.Instance->CCR4 = 1500 + 500*serv_angle;	// servo
+		dribbler_timeout_cnt++;
+		servo_timeout_cnt++;
+		if(dribbler_timeout_cnt > 50){
+			dribbler_speed = 0;
+		}
+
+		if(servo_timeout_cnt > 50){
+			serv_angle = 0;
+		}
   }
   /* USER CODE END 3 */
 }
