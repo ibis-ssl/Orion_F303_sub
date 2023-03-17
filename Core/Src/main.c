@@ -71,11 +71,21 @@ int _write(int file, char *ptr, int len)
 
 
 uint8_t uart_rx_buf[10] = {0};
-bool uart_rx_flag = false;
+uint8_t uart3_rx_buf[10] = {0};
+volatile bool uart_rx_flag = false,uart3_rx_flag = false;
+volatile uint32_t uart_rx_cnt = 0,uart3_rx_cnt = 0;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	uart_rx_flag = true;
+	if(huart->Instance == USART1){
+		uart_rx_flag = true;
+		uart_rx_cnt++;
+		HAL_UART_Receive_IT(&huart1, uart_rx_buf, 1);
+	}else if(huart->Instance == USART3){
+		uart3_rx_flag = true;
+		uart3_rx_cnt++;
+		HAL_UART_Receive_IT(&huart3, uart3_rx_buf, 1);
+	}
 }
 
 float serv_angle = 0,dribbler_speed = 0;
@@ -94,14 +104,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	can_rx_cnt++;
 	switch (can_rx_header.StdId)
 	{
-	case 0x100:
-		servo_timeout_cnt = 0;
-		serv_angle = can_rx_buf.speed/200;
+
+	case 0x104:
+		dribbler_timeout_cnt = 0;
+		dribbler_speed = can_rx_buf.speed/100;
 		break;
 
-	case 0x101:
-		dribbler_timeout_cnt = 0;
-		dribbler_speed = can_rx_buf.speed/200;
+	case 0x105:
+		servo_timeout_cnt = 0;
+		serv_angle = can_rx_buf.speed;
 		break;
 
 
@@ -148,16 +159,21 @@ int main(void)
   MX_ADC4_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  printf("start sub board!!\n");
+  printf("start sub board 0317!!\n");
+	HAL_UART_Receive_IT(&huart3, uart3_rx_buf, 1);
 	HAL_UART_Receive_IT(&huart1, uart_rx_buf, 1);
-	CAN_Filter_Init(0);
+	CAN_Filter_Init();
 	HAL_CAN_Start(&hcan);
 
 	HAL_TIM_PWM_Init(&htim3);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+	htim3.Instance->CCR3 = 0;
+	htim3.Instance->CCR4 = 0;
 	servo_timeout_cnt = 0;
 	dribbler_timeout_cnt = 0;
+
+	uint32_t print_interval = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -168,26 +184,43 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-
-		if (uart_rx_flag)
-		{
-			uart_rx_flag = false;
-			HAL_UART_Receive_IT(&huart1, uart_rx_buf, 1);
-		}
 		HAL_Delay(10);
+		print_interval++;
+		if(print_interval >= 10){
+			print_interval = 0;
+			printf("can rx %3ld uart rx %4d %4d dribbler %6.3f servo %6.3f timeout %4ld %4ld\n",can_rx_cnt,uart_rx_cnt,uart3_rx_cnt,dribbler_speed,serv_angle,dribbler_timeout_cnt,servo_timeout_cnt);
 
-		printf("rx cnt %3d servo %6.3f dribbler %6.3f\n",can_rx_cnt,serv_angle,dribbler_speed);
-		can_rx_cnt = 0;
-		htim3.Instance->CCR3 = 1500 + 500*dribbler_speed;	// pwm
-		htim3.Instance->CCR4 = 1500 + 500*serv_angle;	// servo
-		dribbler_timeout_cnt++;
-		servo_timeout_cnt++;
-		if(dribbler_timeout_cnt > 50){
-			dribbler_speed = 0;
-		}
 
-		if(servo_timeout_cnt > 50){
-			serv_angle = 0;
+			// TEL (LED0,PA3)
+			if(uart3_rx_cnt > 0){
+			      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
+			}else{
+
+			      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+			}
+
+			// RX (can rx,LED2,PA5)
+			if(can_rx_cnt > 0){
+
+			      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+			}else{
+
+			      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+			}
+			can_rx_cnt = 0;
+			uart_rx_cnt = 0;
+			uart3_rx_cnt = 0;
+
+			htim3.Instance->CCR4 = 1500 + 600*dribbler_speed;	// pwm
+			htim3.Instance->CCR3 = 1500 + 600*serv_angle;	// servo
+			dribbler_timeout_cnt++;
+			servo_timeout_cnt++;
+			if(dribbler_timeout_cnt > 50){
+				dribbler_speed = 0;
+			}
+			if(servo_timeout_cnt > 50){
+				serv_angle = 0;
+			}
 		}
   }
   /* USER CODE END 3 */

@@ -50,7 +50,7 @@ typedef union
 void MX_CAN_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-void CAN_Filter_Init(uint16_t board_addr);
+void CAN_Filter_Init();
 
 /* USER CODE END Prototypes */
 
