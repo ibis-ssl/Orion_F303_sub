@@ -57,16 +57,22 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define LED_0_Pin GPIO_PIN_3
-#define LED_0_GPIO_Port GPIOA
-#define LED_1_Pin GPIO_PIN_4
-#define LED_1_GPIO_Port GPIOA
-#define LED_2_Pin GPIO_PIN_5
-#define LED_2_GPIO_Port GPIOA
+#define LED_0_Pin GPIO_PIN_13
+#define LED_0_GPIO_Port GPIOC
+#define LED_1_Pin GPIO_PIN_14
+#define LED_1_GPIO_Port GPIOC
+#define LED_2_Pin GPIO_PIN_15
+#define LED_2_GPIO_Port GPIOC
+#define EX_GPIO_4_Pin GPIO_PIN_0
+#define EX_GPIO_4_GPIO_Port GPIOA
 #define LED_3_Pin GPIO_PIN_6
 #define LED_3_GPIO_Port GPIOA
 #define LED_4_Pin GPIO_PIN_7
 #define LED_4_GPIO_Port GPIOA
+#define INTALAPTER_OUT_Pin GPIO_PIN_2
+#define INTALAPTER_OUT_GPIO_Port GPIOB
+#define SW_2_Pin GPIO_PIN_12
+#define SW_2_GPIO_Port GPIOB
 #define PHOTO_0_Pin GPIO_PIN_13
 #define PHOTO_0_GPIO_Port GPIOB
 #define PHOTO_1_Pin GPIO_PIN_14
@@ -75,6 +81,8 @@ void Error_Handler(void);
 #define SW_0_GPIO_Port GPIOB
 #define SW_1_Pin GPIO_PIN_8
 #define SW_1_GPIO_Port GPIOA
+#define EX_GPIO_3_Pin GPIO_PIN_6
+#define EX_GPIO_3_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

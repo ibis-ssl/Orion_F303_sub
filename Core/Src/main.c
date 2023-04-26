@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "adc.h"
 #include "can.h"
 #include "dma.h"
 #include "tim.h"
@@ -156,10 +155,9 @@ int main(void)
   MX_CAN_Init();
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
-  MX_ADC4_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  printf("start sub board 0317!!\n");
+  printf("start sub board 0426!!\n");
 	HAL_UART_Receive_IT(&huart3, uart3_rx_buf, 1);
 	HAL_UART_Receive_IT(&huart1, uart_rx_buf, 1);
 	CAN_Filter_Init();
@@ -193,26 +191,46 @@ int main(void)
 
 			// TEL (LED0,PA3)
 			if(uart3_rx_cnt > 0){
-			      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
+			      HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_SET);
 			}else{
 
-			      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+			      HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_RESET);
 			}
 
 			// RX (can rx,LED2,PA5)
 			if(can_rx_cnt > 0){
 
-			      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+			      HAL_GPIO_WritePin(LED_2_GPIO_Port, LED_2_Pin, GPIO_PIN_SET);
 			}else{
 
-			      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+			      HAL_GPIO_WritePin(LED_2_GPIO_Port, LED_2_Pin, GPIO_PIN_RESET);
 			}
+
+			if(dribbler_speed != 0){
+			      HAL_GPIO_WritePin(LED_0_GPIO_Port, LED_0_Pin, GPIO_PIN_SET);
+			}else{
+
+			      HAL_GPIO_WritePin(LED_0_GPIO_Port, LED_0_Pin, GPIO_PIN_RESET);
+			}
+
+
 			can_rx_cnt = 0;
 			uart_rx_cnt = 0;
 			uart3_rx_cnt = 0;
 
-			htim3.Instance->CCR4 = 1500 + 600*dribbler_speed;	// pwm
-			htim3.Instance->CCR3 = 1500 + 600*serv_angle;	// servo
+			if(HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_SET){
+				htim3.Instance->CCR3 = 1500 + 600*dribbler_speed;	// esc
+			}else{
+				htim3.Instance->CCR3 = 1500 + 300;	// esc
+			}
+
+			if(HAL_GPIO_ReadPin(SW_2_GPIO_Port, SW_2_Pin) == GPIO_PIN_SET){
+				htim3.Instance->CCR4 = 1500 + 600*serv_angle;	// servo
+			}else{
+				htim3.Instance->CCR4 = 1500 + 300;	// servo
+			}
+
+
 			dribbler_timeout_cnt++;
 			servo_timeout_cnt++;
 			if(dribbler_timeout_cnt > 50){
@@ -264,11 +282,9 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART3
-                              |RCC_PERIPHCLK_ADC34;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART3;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
-  PeriphClkInit.Adc34ClockSelection = RCC_ADC34PLLCLK_DIV1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
