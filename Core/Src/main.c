@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "can.h"
 #include "dma.h"
 #include "tim.h"
@@ -106,8 +107,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 	case 0x104:
 		dribbler_timeout_cnt = 0;
-		dribbler_speed = can_rx_buf.speed/100;
-		break;
+    dribbler_speed = can_rx_buf.speed;
+    break;
 
 	case 0x105:
 		servo_timeout_cnt = 0;
@@ -121,6 +122,71 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 		break;
 	}
 }
+
+int32_t ball_detect[2] = {0,0};
+
+void ball_sensor(void){
+  static CAN_TxHeaderTypeDef can_header;
+  static uint32_t can_mailbox;
+  static uint8_t can_data[8];
+
+  static int32_t ball_detect_process = 0;
+  static int32_t adc_raw[3];
+
+  switch (ball_detect_process)
+  {
+  case 0:
+    HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_RESET);
+    ball_detect_process++;
+    break;
+  case 1:
+    adc_raw[0] = HAL_ADC_GetValue(&hadc2);
+    ball_detect_process++;
+    break;
+  case 2:
+    HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_RESET);
+    ball_detect_process++;
+    break;
+  case 3:
+    adc_raw[1] = HAL_ADC_GetValue(&hadc2);
+    ball_detect_process++;
+    break;
+  case 4:
+    HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_SET);
+    ball_detect_process++;
+    break;
+  case 5:
+    adc_raw[2] = HAL_ADC_GetValue(&hadc2);
+    ball_detect_process++;
+    ball_detect[0] = adc_raw[0] - adc_raw[1];
+    ball_detect[1] = adc_raw[0] - adc_raw[2];
+
+    // 
+    if(ball_detect[1] < 500){
+      can_data[0] = 1;
+      can_data[1] = 0;
+    }else if(ball_detect[0] < 500){
+      can_data[0] = 1;
+      can_data[1] = 5;
+    }else{
+      can_data[0] = 0;
+      can_data[1] = 0;
+    }
+    can_header.StdId = 0x240;
+    can_header.RTR = CAN_RTR_DATA;
+    can_header.DLC = 2;
+    can_header.TransmitGlobalTime = DISABLE;
+    HAL_CAN_AddTxMessage(&hcan, &can_header, can_data, &can_mailbox);
+    break;
+  default:
+	  ball_detect_process = 0;
+  break;
+  }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -156,6 +222,8 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   MX_TIM3_Init();
+  MX_ADC2_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   printf("start sub board 0426!!\n");
 	HAL_UART_Receive_IT(&huart3, uart3_rx_buf, 1);
@@ -171,25 +239,76 @@ int main(void)
 	servo_timeout_cnt = 0;
 	dribbler_timeout_cnt = 0;
 
-	uint32_t print_interval = 0;
-  /* USER CODE END 2 */
+  uint32_t print_interval = 0;
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
+  if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK)
+   {
+     /* Calibration Error */
+  Error_Handler();
+    }
+    if (HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED) != HAL_OK)
+    {
+      /* Calibration Error */
+      Error_Handler();
+    }
 
-    /* USER CODE BEGIN 3 */
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_Start(&hadc2);
 
-		HAL_Delay(10);
-		print_interval++;
-		if(print_interval >= 10){
+    /*
+      uint32_t print_cnt = 0;
+      while (1)
+      {
+        print_cnt++;
+        if (print_cnt > 10)
+        {
+          print_cnt = 0;
+          printf("ball 0 %+6d / 1 %+6d\n",ball_detect[0],ball_detect[1]);
+        }
+        ball_sensor();
+        HAL_Delay(1);
+      }*/
+
+    /*
+      while(1){
+            HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_SET);
+            HAL_Delay(100);
+
+           printf("set : %5d ,",HAL_ADC_GetValue(&hadc2));
+            HAL_Delay(100);
+
+
+            HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_RESET);
+            HAL_Delay(100);
+
+           printf("reset : %5d\n",HAL_ADC_GetValue(&hadc2));
+              HAL_Delay(100);
+
+
+
+      }*/
+    /* USER CODE END 2 */
+
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
+    while (1)
+    {
+      /* USER CODE END WHILE */
+
+      /* USER CODE BEGIN 3 */
+
+      HAL_Delay(1);
+      ball_sensor();
+
+      print_interval++;
+      if (print_interval >= 100)
+      {
 			print_interval = 0;
-			printf("can rx %3ld uart rx %4d %4d dribbler %6.3f servo %6.3f timeout %4ld %4ld\n",can_rx_cnt,uart_rx_cnt,uart3_rx_cnt,dribbler_speed,serv_angle,dribbler_timeout_cnt,servo_timeout_cnt);
+      printf("can rx %3ld uart rx %4d %4d dribbler %6.3f servo %6.3f timeout %4ld %4ld ball %+5d %+5d\n", can_rx_cnt, uart_rx_cnt, uart3_rx_cnt, dribbler_speed, serv_angle, dribbler_timeout_cnt, servo_timeout_cnt, ball_detect[0], ball_detect[1]);
 
-
-			// TEL (LED0,PA3)
+      // TEL (LED0,PA3)
 			if(uart3_rx_cnt > 0){
 			      HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_SET);
 			}else{
@@ -282,9 +401,11 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART3;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART3
+                              |RCC_PERIPHCLK_ADC12;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
+  PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();

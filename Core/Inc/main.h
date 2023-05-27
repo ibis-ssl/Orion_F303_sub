@@ -69,8 +69,6 @@ void Error_Handler(void);
 #define LED_3_GPIO_Port GPIOA
 #define LED_4_Pin GPIO_PIN_7
 #define LED_4_GPIO_Port GPIOA
-#define INTALAPTER_OUT_Pin GPIO_PIN_2
-#define INTALAPTER_OUT_GPIO_Port GPIOB
 #define SW_2_Pin GPIO_PIN_12
 #define SW_2_GPIO_Port GPIOB
 #define PHOTO_0_Pin GPIO_PIN_13
