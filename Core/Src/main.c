@@ -50,6 +50,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+#define BALL_DETECTOR_THRESH (2000)
+
+#define USER_SW_SERVO_PULSE_WITDH (400)
+#define USER_SW_ESC_PULSE_WITDH (300)
 
 /* USER CODE END PV */
 
@@ -133,6 +137,8 @@ void ball_sensor(void){
   static int32_t ball_detect_process = 0;
   static int32_t adc_raw[3];
 
+  bool ball_detected[2];
+
   switch (ball_detect_process)
   {
   case 0:
@@ -164,17 +170,39 @@ void ball_sensor(void){
     ball_detect[0] = adc_raw[0] - adc_raw[1];
     ball_detect[1] = adc_raw[0] - adc_raw[2];
 
+
+	if(HAL_GPIO_ReadPin(SW_2_GPIO_Port, SW_2_Pin) == GPIO_PIN_RESET){
+		ball_detect[0] = 0;
+		ball_detect[1] = 0;
+	}
+
     // 
-    if(ball_detect[1] < 500){
-      can_data[0] = 1;
-      can_data[1] = 0;
-    }else if(ball_detect[0] < 500){
-      can_data[0] = 1;
-      can_data[1] = 5;
+    if(ball_detect[1] < BALL_DETECTOR_THRESH){
+      ball_detected[0] = true;
+      HAL_GPIO_WritePin(LED_3_GPIO_Port, LED_3_Pin, GPIO_PIN_SET);
     }else{
-      can_data[0] = 0;
-      can_data[1] = 0;
+        ball_detected[0] = false;
+        HAL_GPIO_WritePin(LED_3_GPIO_Port, LED_3_Pin, GPIO_PIN_RESET);
     }
+    if(ball_detect[0] < BALL_DETECTOR_THRESH){
+      ball_detected[1] = true;
+      HAL_GPIO_WritePin(LED_4_GPIO_Port, LED_4_Pin, GPIO_PIN_SET);
+    }else{
+      ball_detected[1] = false;
+      HAL_GPIO_WritePin(LED_4_GPIO_Port, LED_4_Pin, GPIO_PIN_RESET);
+    }
+
+    if(ball_detected[0]){
+        can_data[0] = 1;
+        can_data[1] = 0;
+    }else if(ball_detected[1]){
+        can_data[0] = 1;
+        can_data[1] = 5;
+    }else{
+        can_data[0] = 0;
+        can_data[1] = 0;
+    }
+
     can_header.StdId = 0x240;
     can_header.RTR = CAN_RTR_DATA;
     can_header.DLC = 2;
@@ -255,40 +283,6 @@ int main(void)
     HAL_ADC_Start(&hadc1);
     HAL_ADC_Start(&hadc2);
 
-    /*
-      uint32_t print_cnt = 0;
-      while (1)
-      {
-        print_cnt++;
-        if (print_cnt > 10)
-        {
-          print_cnt = 0;
-          printf("ball 0 %+6d / 1 %+6d\n",ball_detect[0],ball_detect[1]);
-        }
-        ball_sensor();
-        HAL_Delay(1);
-      }*/
-
-    /*
-      while(1){
-            HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_SET);
-            HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_SET);
-            HAL_Delay(100);
-
-           printf("set : %5d ,",HAL_ADC_GetValue(&hadc2));
-            HAL_Delay(100);
-
-
-            HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_RESET);
-            HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_RESET);
-            HAL_Delay(100);
-
-           printf("reset : %5d\n",HAL_ADC_GetValue(&hadc2));
-              HAL_Delay(100);
-
-
-
-      }*/
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -337,16 +331,16 @@ int main(void)
 			uart_rx_cnt = 0;
 			uart3_rx_cnt = 0;
 
-			if(HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_SET){
+			if(HAL_GPIO_ReadPin(SW_0_GPIO_Port, SW_0_Pin) == GPIO_PIN_SET){
 				htim3.Instance->CCR3 = 1500 + 600*dribbler_speed;	// esc
 			}else{
-				htim3.Instance->CCR3 = 1500 + 300;	// esc
+				htim3.Instance->CCR3 = 1500 + USER_SW_ESC_PULSE_WITDH;	// esc
 			}
 
-			if(HAL_GPIO_ReadPin(SW_2_GPIO_Port, SW_2_Pin) == GPIO_PIN_SET){
+			if(HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_SET){
 				htim3.Instance->CCR4 = 1500 + 600*serv_angle;	// servo
 			}else{
-				htim3.Instance->CCR4 = 1500 + 300;	// servo
+				htim3.Instance->CCR4 = 1500 + USER_SW_SERVO_PULSE_WITDH;	// servo
 			}
 
 
