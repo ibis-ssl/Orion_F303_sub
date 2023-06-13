@@ -2813,13 +2813,13 @@ int main(void)
  80017d6:	4603      	mov	r3, r0
  80017d8:	2b01      	cmp	r3, #1
  80017da:	d112      	bne.n	8001802 <main+0x226>
-				htim3.Instance->CCR4 = 1500 + 600*serv_angle;	// servo
+				htim3.Instance->CCR4 = 1500 - 600*serv_angle;	// servo
  80017dc:	4b28      	ldr	r3, [pc, #160]	; (8001880 <main+0x2a4>)
  80017de:	edd3 7a00 	vldr	s15, [r3]
  80017e2:	ed9f 7a2c 	vldr	s14, [pc, #176]	; 8001894 <main+0x2b8>
  80017e6:	ee67 7a87 	vmul.f32	s15, s15, s14
  80017ea:	ed9f 7a2b 	vldr	s14, [pc, #172]	; 8001898 <main+0x2bc>
- 80017ee:	ee77 7a87 	vadd.f32	s15, s15, s14
+ 80017ee:	ee77 7a67 	vsub.f32	s15, s14, s15
  80017f2:	4b1a      	ldr	r3, [pc, #104]	; (800185c <main+0x280>)
  80017f4:	681b      	ldr	r3, [r3, #0]
  80017f6:	eefc 7ae7 	vcvt.u32.f32	s15, s15
@@ -2827,10 +2827,10 @@ int main(void)
  80017fe:	641a      	str	r2, [r3, #64]	; 0x40
  8001800:	e004      	b.n	800180c <main+0x230>
 			}else{
-				htim3.Instance->CCR4 = 1500 + USER_SW_SERVO_PULSE_WITDH;	// servo
+				htim3.Instance->CCR4 = 1500 - USER_SW_SERVO_PULSE_WITDH;	// servo
  8001802:	4b16      	ldr	r3, [pc, #88]	; (800185c <main+0x280>)
  8001804:	681b      	ldr	r3, [r3, #0]
- 8001806:	f240 726c 	movw	r2, #1900	; 0x76c
+ 8001806:	f44f 727a 	mov.w	r2, #1000	; 0x3e8
  800180a:	641a      	str	r2, [r3, #64]	; 0x40
 			}
 

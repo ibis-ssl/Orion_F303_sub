@@ -52,7 +52,7 @@
 /* USER CODE BEGIN PV */
 #define BALL_DETECTOR_THRESH (2000)
 
-#define USER_SW_SERVO_PULSE_WITDH (400)
+#define USER_SW_SERVO_PULSE_WITDH (500)
 #define USER_SW_ESC_PULSE_WITDH (300)
 
 /* USER CODE END PV */
@@ -338,9 +338,9 @@ int main(void)
 			}
 
 			if(HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_SET){
-				htim3.Instance->CCR4 = 1500 + 600*serv_angle;	// servo
+				htim3.Instance->CCR4 = 1500 - 600*serv_angle;	// servo
 			}else{
-				htim3.Instance->CCR4 = 1500 + USER_SW_SERVO_PULSE_WITDH;	// servo
+				htim3.Instance->CCR4 = 1500 - USER_SW_SERVO_PULSE_WITDH;	// servo
 			}
 
 
