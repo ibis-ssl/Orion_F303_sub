@@ -81,6 +81,7 @@ void Error_Handler(void);
 #define SW_1_GPIO_Port GPIOA
 #define EX_GPIO_3_Pin GPIO_PIN_6
 #define EX_GPIO_3_GPIO_Port GPIOB
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
