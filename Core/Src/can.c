@@ -121,13 +121,20 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* canHandle)
 void CAN_Filter_Init()
 {
   CAN_FilterTypeDef sFilterConfig;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+  //sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
   sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
   sFilterConfig.FilterBank = 0;
+
+  sFilterConfig.FilterIdHigh = 0;
+  sFilterConfig.FilterIdLow = 0;
+  sFilterConfig.FilterMaskIdHigh = 0;
+  sFilterConfig.FilterMaskIdLow = 0;
+  /*
   sFilterConfig.FilterIdHigh = (0x104) << 5;
   sFilterConfig.FilterIdLow = (0x105) << 5;
   sFilterConfig.FilterMaskIdHigh = (0x100) << 5;
-  sFilterConfig.FilterMaskIdLow = (0x101) << 5;
+  sFilterConfig.FilterMaskIdLow = (0x101) << 5;*/
   sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
   sFilterConfig.FilterActivation = ENABLE;
   sFilterConfig.SlaveStartFilterBank = 0;
