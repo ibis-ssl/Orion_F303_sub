@@ -18,12 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 #include "adc.h"
 #include "can.h"
 #include "dma.h"
+#include "gpio.h"
 #include "tim.h"
 #include "usart.h"
-#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -139,30 +140,27 @@ void ball_sensor(void)
   switch (ball_detect_process) {
     case 0:
       HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_RESET);
-      ball_detect_process++;
-      break;
-    case 1:
+      HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_SET);
       adc_raw[0] = HAL_ADC_GetValue(&hadc2);
       ball_detect_process++;
       break;
-    case 2:
+
+    case 1:
       HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_SET);
       HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_RESET);
-      ball_detect_process++;
-      break;
-    case 3:
+
       adc_raw[1] = HAL_ADC_GetValue(&hadc2);
+
       ball_detect_process++;
       break;
-    case 4:
+
+    case 2:
+
       HAL_GPIO_WritePin(PHOTO_0_GPIO_Port, PHOTO_0_Pin, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_SET);
-      ball_detect_process++;
-      break;
-    case 5:
+      HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_RESET);
+
       adc_raw[2] = HAL_ADC_GetValue(&hadc2);
-      ball_detect_process++;
+
       ball_detect[0] = adc_raw[0] - adc_raw[1];
       ball_detect[1] = adc_raw[0] - adc_raw[2];
 
@@ -205,10 +203,76 @@ void ball_sensor(void)
       can_header.IDE = CAN_ID_STD;
       can_header.TransmitGlobalTime = DISABLE;
       HAL_CAN_AddTxMessage(&hcan, &can_header, can_data, &can_mailbox);
+
+      ball_detect_process = 0;
       break;
+
     default:
       ball_detect_process = 0;
       break;
+  }
+}
+
+static uint32_t print_interval = 0;
+static uint32_t timer_irq_cnt = 0;
+
+// 2kHz cycle
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
+{
+  ball_sensor();
+
+  print_interval++;
+  if (print_interval >= 500) {
+    print_interval = 0;
+    printf(
+      "ball %3d mbx %ld free %ld can rx %3ld uart rx %4ld %4ld dribbler %6.3f servo %6.3f timeout %4d %4d ball %+5ld %+5ld %d%d \n", ball_detect_cycle_cnt, can_mailbox,
+      HAL_CAN_GetTxMailboxesFreeLevel(&hcan), can_rx_cnt, uart_rx_cnt, uart3_rx_cnt, dribbler_speed, serv_angle, dribbler_timeout_cnt, servo_timeout_cnt, ball_detect[0], ball_detect[1], uart3_rx_flag,
+      uart_rx_flag);
+    ball_detect_cycle_cnt = 0;
+    // TEL (LED0,PA3)
+    if (uart3_rx_cnt > 0) {
+      HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_SET);
+    } else {
+      HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_RESET);
+    }
+
+    // RX (can rx,LED2,PA5)
+    if (can_rx_cnt > 0) {
+      HAL_GPIO_WritePin(LED_2_GPIO_Port, LED_2_Pin, GPIO_PIN_SET);
+    } else {
+      HAL_GPIO_WritePin(LED_2_GPIO_Port, LED_2_Pin, GPIO_PIN_RESET);
+    }
+
+    if (dribbler_speed != 0) {
+      HAL_GPIO_WritePin(LED_0_GPIO_Port, LED_0_Pin, GPIO_PIN_SET);
+    } else {
+      HAL_GPIO_WritePin(LED_0_GPIO_Port, LED_0_Pin, GPIO_PIN_RESET);
+    }
+
+    can_rx_cnt = 0;
+    uart_rx_cnt = 0;
+    uart3_rx_cnt = 0;
+
+    if (HAL_GPIO_ReadPin(SW_0_GPIO_Port, SW_0_Pin) == GPIO_PIN_SET) {
+      htim3.Instance->CCR3 = 1500 + 600 * dribbler_speed;  // esc
+    } else {
+      htim3.Instance->CCR3 = 1500 + USER_SW_ESC_PULSE_WITDH;  // esc
+    }
+
+    if (HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_SET) {
+      htim3.Instance->CCR4 = 1500 - 600 * serv_angle;  // servo
+    } else {
+      htim3.Instance->CCR4 = 1500 - USER_SW_SERVO_PULSE_WITDH;  // servo
+    }
+
+    dribbler_timeout_cnt++;
+    servo_timeout_cnt++;
+    if (dribbler_timeout_cnt > 50) {
+      dribbler_speed = 0;
+    }
+    if (servo_timeout_cnt > 50) {
+      serv_angle = 0;
+    }
   }
 }
 
@@ -249,6 +313,7 @@ int main(void)
   MX_TIM3_Init();
   MX_ADC2_Init();
   MX_ADC1_Init();
+  MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
   printf("start sub board 0426!!\n");
   HAL_UART_Receive_IT(&huart3, uart3_rx_buf, 1);
@@ -257,6 +322,8 @@ int main(void)
   CAN_Filter_Init();
   HAL_CAN_Start(&hcan);
 
+  HAL_TIM_Base_Start_IT(&htim17);
+
   HAL_TIM_PWM_Init(&htim3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
@@ -264,8 +331,6 @@ int main(void)
   htim3.Instance->CCR4 = 0;
   servo_timeout_cnt = 0;
   dribbler_timeout_cnt = 0;
-
-  uint32_t print_interval = 0;
 
   if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK) {
     /* Calibration Error */
@@ -287,62 +352,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-    HAL_Delay(1);
-    ball_sensor();
-
-    print_interval++;
-    if (print_interval >= 100) {
-      print_interval = 0;
-      printf(
-        "ball %3d mbx %ld free %ld can rx %3ld uart rx %4ld %4ld dribbler %6.3f servo %6.3f timeout %4d %4d ball %+5ld %+5ld %d%d\n", ball_detect_cycle_cnt, can_mailbox,
-        HAL_CAN_GetTxMailboxesFreeLevel(&hcan), can_rx_cnt, uart_rx_cnt, uart3_rx_cnt, dribbler_speed, serv_angle, dribbler_timeout_cnt, servo_timeout_cnt, ball_detect[0], ball_detect[1],uart3_rx_flag,uart_rx_flag);
-      ball_detect_cycle_cnt = 0;
-      // TEL (LED0,PA3)
-      if (uart3_rx_cnt > 0) {
-        HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_SET);
-      } else {
-        HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_RESET);
-      }
-
-      // RX (can rx,LED2,PA5)
-      if (can_rx_cnt > 0) {
-        HAL_GPIO_WritePin(LED_2_GPIO_Port, LED_2_Pin, GPIO_PIN_SET);
-      } else {
-        HAL_GPIO_WritePin(LED_2_GPIO_Port, LED_2_Pin, GPIO_PIN_RESET);
-      }
-
-      if (dribbler_speed != 0) {
-        HAL_GPIO_WritePin(LED_0_GPIO_Port, LED_0_Pin, GPIO_PIN_SET);
-      } else {
-        HAL_GPIO_WritePin(LED_0_GPIO_Port, LED_0_Pin, GPIO_PIN_RESET);
-      }
-
-      can_rx_cnt = 0;
-      uart_rx_cnt = 0;
-      uart3_rx_cnt = 0;
-
-      if (HAL_GPIO_ReadPin(SW_0_GPIO_Port, SW_0_Pin) == GPIO_PIN_SET) {
-        htim3.Instance->CCR3 = 1500 + 600 * dribbler_speed;  // esc
-      } else {
-        htim3.Instance->CCR3 = 1500 + USER_SW_ESC_PULSE_WITDH;  // esc
-      }
-
-      if (HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_SET) {
-        htim3.Instance->CCR4 = 1500 - 600 * serv_angle;  // servo
-      } else {
-        htim3.Instance->CCR4 = 1500 - USER_SW_SERVO_PULSE_WITDH;  // servo
-      }
-
-      dribbler_timeout_cnt++;
-      servo_timeout_cnt++;
-      if (dribbler_timeout_cnt > 50) {
-        dribbler_speed = 0;
-      }
-      if (servo_timeout_cnt > 50) {
-        serv_angle = 0;
-      }
-    }
   }
   /* USER CODE END 3 */
 }
@@ -367,31 +376,26 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART3
-                              |RCC_PERIPHCLK_ADC12;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1 | RCC_PERIPHCLK_USART3 | RCC_PERIPHCLK_ADC12;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -414,7 +418,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -422,7 +426,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(uint8_t * file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
