@@ -61,7 +61,76 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+struct
+{
+  uint8_t header;
+  int16_t head_1;
+  int16_t head_2;
+  int16_t head_3;
+  int16_t speed;
+  uint8_t sum;
+} tlm_msg;
+volatile int16_t tmp = 0;
+volatile uint32_t tlm_rx_idx = 0;
 
+void parseTelemetryCmt(uint8_t rx_data)
+{
+  switch (tlm_rx_idx) {
+    case 0:
+      if (rx_data == 0x2c || rx_data == 0x2d) {
+        tlm_rx_idx++;
+      }
+      break;
+    case 1:
+      tmp = rx_data << 8;
+      tlm_rx_idx++;
+      break;
+    case 2:
+      tmp |= rx_data;
+      tlm_msg.head_1 = tmp;
+      tlm_rx_idx++;
+      break;
+
+    case 3:
+      tmp = rx_data << 8;
+      tlm_rx_idx++;
+      break;
+    case 4:
+      tmp |= rx_data;
+      tlm_msg.head_2 = tmp;
+      tlm_rx_idx++;
+      break;
+
+    case 5:
+      tmp = rx_data << 8;
+      tlm_rx_idx++;
+      break;
+    case 6:
+      tmp |= rx_data;
+      tlm_msg.head_3 = tmp;
+      tlm_rx_idx++;
+      break;
+
+    case 7:
+      tmp = rx_data << 8;
+      tlm_rx_idx++;
+      break;
+    case 8:
+      tmp |= rx_data;
+      tlm_msg.speed = tmp;
+      tlm_rx_idx++;
+      break;
+
+    case 9:
+      tlm_msg.sum = rx_data;
+      tlm_rx_idx = 0;
+      break;
+
+    default:
+      tlm_rx_idx = 0;
+      break;
+  }
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -73,8 +142,9 @@ int _write(int file, char * ptr, int len)
   return len;
 }
 
+#define ESC_TLM_BUF_SIZE (100)
 uint8_t uart_rx_buf[10] = {0};
-uint8_t uart3_rx_buf[10] = {0};
+uint8_t uart3_rx_buf[10] = {0}, esc_tlm_buf[ESC_TLM_BUF_SIZE];
 volatile bool uart_rx_flag = false, uart3_rx_flag = false;
 volatile uint32_t uart_rx_cnt = 0, uart3_rx_cnt = 0;
 
@@ -86,18 +156,21 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
     HAL_UART_Receive_IT(&huart1, uart_rx_buf, 1);
   } else if (huart->Instance == USART3) {
     uart3_rx_flag = true;
+    esc_tlm_buf[uart3_rx_cnt] = uart3_rx_buf[0];
     uart3_rx_cnt++;
+    parseTelemetryCmt(uart3_rx_buf[0]);
     HAL_UART_Receive_IT(&huart3, uart3_rx_buf, 1);
   }
 }
 
-float serv_angle = 0, dribbler_speed = 0;
-int servo_timeout_cnt = 0, dribbler_timeout_cnt = 0;
-uint32_t can_rx_cnt = 0;
-can_msg_buf_t can_rx_buf;
-CAN_RxHeaderTypeDef can_rx_header;
+volatile float serv_angle = 0, dribbler_speed = 0;
+volatile int servo_timeout_cnt = 0, dribbler_timeout_cnt = 0;
+volatile float battery_voltage = 0;
+volatile uint32_t can_rx_cnt = 0;
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef * hcan)
 {
+  can_msg_buf_t can_rx_buf;
+  CAN_RxHeaderTypeDef can_rx_header;
   if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &can_rx_header, can_rx_buf.data) != HAL_OK) {
     /* Reception Error */
     Error_Handler();
@@ -124,12 +197,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef * hcan)
 
 int32_t ball_detect[2] = {0, 0};
 
-static can_msg_buf_t ball_msg, voltage_msg;
-
-static uint8_t ball_detect_cycle_cnt = 0;
-
 void ball_sensor(void)
 {
+  static can_msg_buf_t ball_msg, voltage_msg, speed_msg;
+
   static int32_t ball_detect_process = 0;
   static int32_t adc_raw[3];
 
@@ -142,8 +213,8 @@ void ball_sensor(void)
       adc_raw[0] = HAL_ADC_GetValue(&hadc2);
       ball_detect_process++;
 
-    
-      can_send();
+      speed_msg.speed = tlm_msg.speed;
+      can_send(0x204, speed_msg);
       break;
 
     case 1:
@@ -153,8 +224,8 @@ void ball_sensor(void)
       adc_raw[1] = HAL_ADC_GetValue(&hadc2);
 
       ball_detect_process++;
-
-      voltage_msg.voltage = HAL_ADC_GetValue(&hadc1) * 36.3 / 4096;
+      battery_voltage = HAL_ADC_GetValue(&hadc1) * 36.3 / 4096;
+      voltage_msg.voltage = battery_voltage;
       can_send(0x214, voltage_msg);
       break;
 
@@ -199,7 +270,6 @@ void ball_sensor(void)
         ball_msg.data[0] = 0;
         ball_msg.data[1] = 0;
       }
-      ball_detect_cycle_cnt++;
 
       can_send(0x240, ball_msg);
 
@@ -212,22 +282,20 @@ void ball_sensor(void)
   }
 }
 
-static uint32_t print_interval = 0;
-static uint32_t timer_irq_cnt = 0;
-
 // 2kHz cycle
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 {
+  static uint32_t print_interval = 0;
   ball_sensor();
 
   print_interval++;
-  if (print_interval >= 500) {
+  if (print_interval >= 200) {
     print_interval = 0;
     printf(
-      "ball %3d free %ld can rx %3ld uart rx %4ld %4ld dribbler %6.3f servo %6.3f timeout %4d %4d ball %+5ld %+5ld %d%d \n", ball_detect_cycle_cnt,
+      "batt %4.1f spd %4d Mbx %ld can rx %3ld uart rx %4ld %4ld dribbler %6.3f servo %6.3f timeout %4d %4d ball %+5ld %+5ld %d%d \n", battery_voltage, tlm_msg.speed,
       HAL_CAN_GetTxMailboxesFreeLevel(&hcan), can_rx_cnt, uart_rx_cnt, uart3_rx_cnt, dribbler_speed, serv_angle, dribbler_timeout_cnt, servo_timeout_cnt, ball_detect[0], ball_detect[1], uart3_rx_flag,
       uart_rx_flag);
-    ball_detect_cycle_cnt = 0;
+
     // TEL (LED0,PA3)
     if (uart3_rx_cnt > 0) {
       HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_SET);
