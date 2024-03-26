@@ -124,9 +124,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef * hcan)
 
 int32_t ball_detect[2] = {0, 0};
 
-static CAN_TxHeaderTypeDef can_header;
-static uint32_t can_mailbox;
-static uint8_t can_data[8];
+static can_msg_buf_t ball_msg, voltage_msg;
 
 static uint8_t ball_detect_cycle_cnt = 0;
 
@@ -143,6 +141,9 @@ void ball_sensor(void)
       HAL_GPIO_WritePin(PHOTO_1_GPIO_Port, PHOTO_1_Pin, GPIO_PIN_SET);
       adc_raw[0] = HAL_ADC_GetValue(&hadc2);
       ball_detect_process++;
+
+    
+      can_send();
       break;
 
     case 1:
@@ -152,6 +153,9 @@ void ball_sensor(void)
       adc_raw[1] = HAL_ADC_GetValue(&hadc2);
 
       ball_detect_process++;
+
+      voltage_msg.voltage = HAL_ADC_GetValue(&hadc1) * 36.3 / 4096;
+      can_send(0x214, voltage_msg);
       break;
 
     case 2:
@@ -186,23 +190,18 @@ void ball_sensor(void)
       }
 
       if (ball_detected[0]) {
-        can_data[0] = 1;
-        can_data[1] = 0;
+        ball_msg.data[0] = 1;
+        ball_msg.data[1] = 0;
       } else if (ball_detected[1]) {
-        can_data[0] = 1;
-        can_data[1] = 5;
+        ball_msg.data[0] = 1;
+        ball_msg.data[1] = 5;
       } else {
-        can_data[0] = 0;
-        can_data[1] = 0;
+        ball_msg.data[0] = 0;
+        ball_msg.data[1] = 0;
       }
       ball_detect_cycle_cnt++;
 
-      can_header.StdId = 0x240;
-      can_header.RTR = CAN_RTR_DATA;
-      can_header.DLC = 4;
-      can_header.IDE = CAN_ID_STD;
-      can_header.TransmitGlobalTime = DISABLE;
-      HAL_CAN_AddTxMessage(&hcan, &can_header, can_data, &can_mailbox);
+      can_send(0x240, ball_msg);
 
       ball_detect_process = 0;
       break;
@@ -225,7 +224,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (print_interval >= 500) {
     print_interval = 0;
     printf(
-      "ball %3d mbx %ld free %ld can rx %3ld uart rx %4ld %4ld dribbler %6.3f servo %6.3f timeout %4d %4d ball %+5ld %+5ld %d%d \n", ball_detect_cycle_cnt, can_mailbox,
+      "ball %3d free %ld can rx %3ld uart rx %4ld %4ld dribbler %6.3f servo %6.3f timeout %4d %4d ball %+5ld %+5ld %d%d \n", ball_detect_cycle_cnt,
       HAL_CAN_GetTxMailboxesFreeLevel(&hcan), can_rx_cnt, uart_rx_cnt, uart3_rx_cnt, dribbler_speed, serv_angle, dribbler_timeout_cnt, servo_timeout_cnt, ball_detect[0], ball_detect[1], uart3_rx_flag,
       uart_rx_flag);
     ball_detect_cycle_cnt = 0;
