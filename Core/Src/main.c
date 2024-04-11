@@ -56,6 +56,8 @@
 #define USER_SW_SERVO_PULSE_WITDH (500)
 #define USER_SW_ESC_PULSE_WITDH (300)
 
+#define SERVO_CENTOR_OFFSET (100)
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -292,7 +294,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
   if (print_interval >= 200) {
     print_interval = 0;
     printf(
-      "batt %4.1f spd %4d Mbx %ld can rx %3ld uart rx %4ld %4ld dribbler %6.3f servo %6.3f timeout %4d %4d ball %+5ld %+5ld %d%d \n", battery_voltage, tlm_msg.speed,
+      "\e[0mbatt %4.1f spd %4d Mbx %ld can rx %3ld uart rx %4ld %4ld dribbler %6.3f servo %6.3f timeout %4d %4d ball %+5ld %+5ld %d%d \n", battery_voltage, tlm_msg.speed,
       HAL_CAN_GetTxMailboxesFreeLevel(&hcan), can_rx_cnt, uart_rx_cnt, uart3_rx_cnt, dribbler_speed, serv_angle, dribbler_timeout_cnt, servo_timeout_cnt, ball_detect[0], ball_detect[1], uart3_rx_flag,
       uart_rx_flag);
 
@@ -327,9 +329,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
     }
 
     if (HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_SET) {
-      htim3.Instance->CCR4 = 1500 - 600 * serv_angle;  // servo
+      htim3.Instance->CCR4 = 1500 - 600 * serv_angle + SERVO_CENTOR_OFFSET;  // servo
     } else {
-      htim3.Instance->CCR4 = 1500 - USER_SW_SERVO_PULSE_WITDH;  // servo
+      htim3.Instance->CCR4 = 1500 - USER_SW_SERVO_PULSE_WITDH + SERVO_CENTOR_OFFSET;  // servo
     }
 
     dribbler_timeout_cnt++;
