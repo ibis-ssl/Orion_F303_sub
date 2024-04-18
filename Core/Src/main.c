@@ -384,7 +384,7 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
-  printf("start sub board 0426!!\n");
+  printf("start sub board !! %s %s\n", __DATE__, __TIME__);
   HAL_UART_Receive_IT(&huart3, uart3_rx_buf, 1);
   HAL_UART_Receive_IT(&huart1, uart_rx_buf, 1);
 
