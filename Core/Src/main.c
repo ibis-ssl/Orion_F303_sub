@@ -37,6 +37,8 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+#include "lcd.h"
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
