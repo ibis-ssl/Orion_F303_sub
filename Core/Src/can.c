@@ -46,7 +46,7 @@ void MX_CAN_Init(void)
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = DISABLE;
   hcan.Init.AutoWakeUp = DISABLE;
-  hcan.Init.AutoRetransmission = DISABLE;
+  hcan.Init.AutoRetransmission = ENABLE;
   hcan.Init.ReceiveFifoLocked = DISABLE;
   hcan.Init.TransmitFifoPriority = DISABLE;
   if (HAL_CAN_Init(&hcan) != HAL_OK)
@@ -84,8 +84,6 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* canHandle)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /* CAN interrupt Init */
-    HAL_NVIC_SetPriority(USB_HP_CAN_TX_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(USB_HP_CAN_TX_IRQn);
     HAL_NVIC_SetPriority(USB_LP_CAN_RX0_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(USB_LP_CAN_RX0_IRQn);
   /* USER CODE BEGIN CAN_MspInit 1 */
@@ -112,7 +110,6 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* canHandle)
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11|GPIO_PIN_12);
 
     /* CAN interrupt Deinit */
-    HAL_NVIC_DisableIRQ(USB_HP_CAN_TX_IRQn);
     HAL_NVIC_DisableIRQ(USB_LP_CAN_RX0_IRQn);
   /* USER CODE BEGIN CAN_MspDeInit 1 */
 
@@ -124,13 +121,20 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* canHandle)
 void CAN_Filter_Init()
 {
   CAN_FilterTypeDef sFilterConfig;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+  //sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
   sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
   sFilterConfig.FilterBank = 0;
+
+  sFilterConfig.FilterIdHigh = 0;
+  sFilterConfig.FilterIdLow = 0;
+  sFilterConfig.FilterMaskIdHigh = 0;
+  sFilterConfig.FilterMaskIdLow = 0;
+  /*
   sFilterConfig.FilterIdHigh = (0x104) << 5;
   sFilterConfig.FilterIdLow = (0x105) << 5;
   sFilterConfig.FilterMaskIdHigh = (0x100) << 5;
-  sFilterConfig.FilterMaskIdLow = (0x101) << 5;
+  sFilterConfig.FilterMaskIdLow = (0x101) << 5;*/
   sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
   sFilterConfig.FilterActivation = ENABLE;
   sFilterConfig.SlaveStartFilterBank = 0;
@@ -141,6 +145,20 @@ void CAN_Filter_Init()
   if (HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
   {
     Error_Handler();
+  }
+}
+
+void can_send(uint32_t can_id, can_msg_buf_t msg)
+{
+  CAN_TxHeaderTypeDef can_header;
+  uint32_t can_mailbox;
+  can_header.StdId = can_id;
+  can_header.ExtId = 0;
+  can_header.RTR = CAN_RTR_DATA;
+  can_header.DLC = 8;
+  can_header.IDE = CAN_ID_STD;
+  can_header.TransmitGlobalTime = DISABLE;
+  if (HAL_CAN_AddTxMessage(&hcan, &can_header, msg.data, &can_mailbox) != 0) {
   }
 }
 /* USER CODE END 1 */

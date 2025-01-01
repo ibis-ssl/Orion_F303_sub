@@ -52,6 +52,8 @@ void MX_CAN_Init(void);
 /* USER CODE BEGIN Prototypes */
 void CAN_Filter_Init();
 
+void can_send(uint32_t id, can_msg_buf_t msg);
+
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

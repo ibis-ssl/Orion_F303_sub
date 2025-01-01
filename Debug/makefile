@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (10.3-2021.10)
+# Toolchain: GNU Tools for STM32 (11.3.rel1)
 ################################################################################
 
 -include ../makefile.init
@@ -60,8 +60,8 @@ all: main-build
 main-build: orion_F303_sub_v1.elf secondary-outputs
 
 # Tool invocations
-orion_F303_sub_v1.elf orion_F303_sub_v1.map: $(OBJS) $(USER_OBJS) C:\Users\hiroy\Documents\Orion_F303_sub\STM32F303CBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "orion_F303_sub_v1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\hiroy\Documents\Orion_F303_sub\STM32F303CBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="orion_F303_sub_v1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
+orion_F303_sub_v1.elf orion_F303_sub_v1.map: $(OBJS) $(USER_OBJS) C:\Users\hiroy\STM32CubeIDE\workspace_1.10.1\Orion_F303_sub\STM32F303CBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "orion_F303_sub_v1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\hiroy\STM32CubeIDE\workspace_1.10.1\Orion_F303_sub\STM32F303CBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="orion_F303_sub_v1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
