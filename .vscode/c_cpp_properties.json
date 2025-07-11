@@ -5,8 +5,8 @@
             "includePath": [
                 "${default}",
                 "${workspaceFolder}/**",
-                "C:\\Program Files (x86)\\GNU Tools Arm Embedded\\9 2019-q4-major\\arm-none-eabi\\include**",
-                "C:\\Program Files (x86)\\GNU Tools Arm Embedded\\9 2019-q4-major\\lib\\gcc\\arm-none-eabi\\9.2.1\\include"
+                "C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\14.2 rel1\\arm-none-eabi\\include**",
+                "C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\14.2 rel1\\lib\\gcc\\arm-none-eabi\\14.2.1\\include"
             ],
             "intelliSenseMode": "windows-gcc-arm",
             "defines": [
@@ -17,7 +17,7 @@
             ],
             "cStandard": "c11",
             "cppStandard": "c++11",
-            "compilerPath": "C:\\Program Files (x86)\\GNU Tools Arm Embedded\\9 2019-q4-major\\bin\\arm-none-eabi-gcc"
+            "compilerPath": "C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\14.2 rel1\\bin\\arm-none-eabi-gcc"
         }
     ],
     "version": 4

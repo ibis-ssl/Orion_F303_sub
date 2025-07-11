@@ -34,34 +34,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := orion_F303_sub_v1
+BUILD_ARTIFACT_NAME := Orion_F303_sub
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-orion_F303_sub_v1.elf \
+Orion_F303_sub.elf \
 
 MAP_FILES += \
-orion_F303_sub_v1.map \
+Orion_F303_sub.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-orion_F303_sub_v1.list \
+Orion_F303_sub.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: orion_F303_sub_v1.elf secondary-outputs
+main-build: Orion_F303_sub.elf secondary-outputs
 
 # Tool invocations
-orion_F303_sub_v1.elf orion_F303_sub_v1.map: $(OBJS) $(USER_OBJS) C:\Users\hiroyuki\Documents\STM32CudePrj\Orion_F303_sub\STM32F303CBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "orion_F303_sub_v1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\hiroyuki\Documents\STM32CudePrj\Orion_F303_sub\STM32F303CBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="orion_F303_sub_v1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Orion_F303_sub.elf Orion_F303_sub.map: $(OBJS) $(USER_OBJS) C:\Users\hiroyuki\STM32CubeIDE\workspace_1.17.0\Orion_F303_sub\STM32F303CBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Orion_F303_sub.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\hiroyuki\STM32CubeIDE\workspace_1.17.0\Orion_F303_sub\STM32F303CBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Orion_F303_sub.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +70,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-orion_F303_sub_v1.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "orion_F303_sub_v1.list"
+Orion_F303_sub.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "Orion_F303_sub.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) default.size.stdout orion_F303_sub_v1.elf orion_F303_sub_v1.list orion_F303_sub_v1.map
+	-$(RM) Orion_F303_sub.elf Orion_F303_sub.list Orion_F303_sub.map default.size.stdout
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
