@@ -1,3 +1,4 @@
+# Builds relocated F303 sub artifacts and flashes a bootloader-enabled target.
 param(
   [ValidateSet("Debug", "Release")]
   [string]$Configuration = "Debug",
@@ -6,10 +7,13 @@ param(
 
   [string]$ProgrammerPath = "C:\ST\STM32CubeCLT_1.21.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe",
 
+  [string]$ProbeSerial = "",
+
   [ValidateRange(1, 64)]
   [int]$Jobs = 4,
 
   [switch]$Rebuild,
+  [switch]$BootloaderInstalled,
   [switch]$NoVerify,
   [switch]$NoReset
 )
@@ -17,7 +21,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$buildScript = Join-Path $scriptDir "build.ps1"
+$buildScript = Join-Path $scriptDir "build_application.ps1"
 $flashScript = Join-Path $scriptDir "flash.ps1"
 
 $buildArgs = @{
@@ -38,6 +42,9 @@ $flashArgs = @{
   Configuration = $Configuration
   ProgrammerPath = $ProgrammerPath
 }
+if (-not $BootloaderInstalled) { throw "Use install_sub_bootloader.ps1 -Execute first, or pass -BootloaderInstalled." }
+$flashArgs.BootloaderInstalled = $true
+if (-not [string]::IsNullOrWhiteSpace($ProbeSerial)) { $flashArgs.ProbeSerial = $ProbeSerial }
 if ($NoVerify) {
   $flashArgs.NoVerify = $true
 }

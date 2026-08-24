@@ -57,21 +57,16 @@ TIM17の2 kHzコールバックでボールセンサ処理を3段階に分けて
 ## ビルドと書き込み
 
 ```powershell
-# Debugビルド
-powershell -ExecutionPolicy Bypass -File .\Script\build.ps1
+# bootloaderと再配置済みDebugアプリをビルド
+powershell -ExecutionPolicy Bypass -File .\Script\build_bootloader.ps1 -Rebuild
+powershell -ExecutionPolicy Bypass -File .\Script\build_application.ps1 -Configuration Debug -Rebuild
 
-# Releaseビルド
-powershell -ExecutionPolicy Bypass -File .\Script\build.ps1 -Configuration Release
-
-# 既存ELFを書き込み
-powershell -ExecutionPolicy Bypass -File .\Script\flash.ps1
-
-# リビルド後に書き込み
-powershell -ExecutionPolicy Bypass -File .\Script\build_and_flash.ps1 -Rebuild
+# 初回はdry-runでbackupし、確認後だけ-Executeを付ける
+powershell -ExecutionPolicy Bypass -File .\Script\install_sub_bootloader.ps1 -Configuration Debug -ProbeSerial <SUB_STLINK_SN>
+powershell -ExecutionPolicy Bypass -File .\Script\install_sub_bootloader.ps1 -Configuration Debug -ProbeSerial <SUB_STLINK_SN> -Execute
 ```
 
-`flash.ps1` は各構成の生成済みmakefileから `BUILD_ARTIFACT_NAME` を読み取るため、
-DebugとReleaseでELF名が異なっていても対応できる。
+通常アプリは`0x08004000`へ再配置済みであり、単体CLI書込みは禁止する。初回導入後は`flash.ps1 -BootloaderInstalled -ProbeSerial <SUB_STLINK_SN>`を使用し、applicationとmetadataを連続更新する。詳細は`doc/bootloader.md`を参照する。
 
 現在のRelease生成makefileには、移動前のリンカスクリプト絶対パス
 `C:\Users\hiroy\Documents\Orion_F303_sub\STM32F303CBTX_FLASH.ld` が残っている。

@@ -1,4 +1,7 @@
+/* OLEDの初期表示とsub基板状態表示を生成し、SSD1306へ描画する。 */
 #include "lcd.h"
+
+#include <stdio.h>
 
 #define LCD_LINE_0 (0)
 #define LCD_LINE_1 (22)

@@ -1,11 +1,15 @@
+# Writes the relocated F303 sub application and metadata after bootloader installation.
 param(
   [ValidateSet("Debug", "Release")]
   [string]$Configuration = "Debug",
 
   [string]$ProgrammerPath = "C:\ST\STM32CubeCLT_1.21.0\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe",
 
+  [string]$ProbeSerial = "",
+
   [switch]$List,
   [switch]$ConnectOnly,
+  [switch]$BootloaderInstalled,
   [switch]$NoVerify,
   [switch]$NoReset
 )
@@ -16,6 +20,12 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
 $buildDir = Join-Path $repoRoot $Configuration
 $makefilePath = Join-Path $buildDir "makefile"
+$connection = "port=SWD mode=UR"
+$hotplug = "port=SWD mode=HOTPLUG"
+if (-not [string]::IsNullOrWhiteSpace($ProbeSerial)) {
+  $connection += " sn=$ProbeSerial"
+  $hotplug += " sn=$ProbeSerial"
+}
 
 if (-not (Test-Path -LiteralPath $ProgrammerPath -PathType Leaf)) {
   throw "STM32_Programmer_CLI.exe not found: $ProgrammerPath"
@@ -30,7 +40,7 @@ if ($List) {
 }
 
 if ($ConnectOnly) {
-  & $ProgrammerPath "-c" "port=SWD mode=UR" "-rst"
+  & $ProgrammerPath "-c" $connection "-rst"
   if ($LASTEXITCODE -ne 0) {
     throw "Target connection failed"
   }
@@ -52,8 +62,20 @@ if (-not (Test-Path -LiteralPath $elfPath -PathType Leaf)) {
   throw "ELF not found: $elfPath"
 }
 
+if (-not $BootloaderInstalled) {
+  throw "The application is linked at 0x08004000. Use install_sub_bootloader.ps1 -Execute first, or pass -BootloaderInstalled."
+}
+
+$metadataPath = Join-Path $buildDir "Orion_F303_sub_app.metadata.bin"
+if (-not (Test-Path $metadataPath)) { throw "Metadata not found: $metadataPath. Run build_application.ps1 first." }
+
+$targetOutput = & $ProgrammerPath -c $hotplug 2>&1
+if ($LASTEXITCODE -ne 0 -or ($targetOutput -join "`n") -notmatch 'Device ID\s+: 0x422') {
+  throw "Expected STM32F303xB/C target (0x422) was not detected; no write was performed."
+}
+
 $programmerArgs = @(
-  "-c", "port=SWD mode=UR",
+  "-c", $connection,
   "-w", $elfPath
 )
 
@@ -61,11 +83,13 @@ if (-not $NoVerify) {
   $programmerArgs += "-v"
 }
 
-if (-not $NoReset) {
-  $programmerArgs += "-rst"
-}
-
 & $ProgrammerPath @programmerArgs
 if ($LASTEXITCODE -ne 0) {
   throw "Flash failed for $Configuration"
 }
+
+$metadataArgs = @("-c", $connection, "-w", $metadataPath, "0x0801F800")
+if (-not $NoVerify) { $metadataArgs += "-v" }
+if (-not $NoReset) { $metadataArgs += "-rst" }
+& $ProgrammerPath @metadataArgs
+if ($LASTEXITCODE) { throw "Metadata Flash failed for $Configuration" }

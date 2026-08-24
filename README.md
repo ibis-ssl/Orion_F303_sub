@@ -13,11 +13,12 @@ CubeIDEでプロジェクトをインポートしてビルドできます。コ�
 類似プロジェクト `Orion_F303_BLDC` から移植したスクリプトを使用できます。
 
 ```powershell
-# Debugビルド
-powershell -ExecutionPolicy Bypass -File .\Script\build.ps1
+# bootloaderと再配置済みアプリをビルド
+powershell -ExecutionPolicy Bypass -File .\Script\build_bootloader.ps1 -Rebuild
+powershell -ExecutionPolicy Bypass -File .\Script\build_application.ps1 -Configuration Debug -Rebuild
 
-# リビルドして書き込み
-powershell -ExecutionPolicy Bypass -File .\Script\build_and_flash.ps1 -Rebuild
+# 初回導入前のFlash/Option Bytes backup
+powershell -ExecutionPolicy Bypass -File .\Script\install_sub_bootloader.ps1 -ProbeSerial <SUB_STLINK_SN>
 
 # USART1（2 Mbps）のログを表示
 powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM3
