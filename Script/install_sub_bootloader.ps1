@@ -11,8 +11,8 @@ param(
 $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
-$bootloaderHex = Join-Path $repoRoot "Bootloader\Build\Orion_F303_sub_bootloader.hex"
-$applicationElf = Join-Path $repoRoot "$Configuration\Orion_F303_sub.elf"
+$bootloaderBin = Join-Path $repoRoot "Bootloader\Build\Orion_F303_sub_bootloader.bin"
+$applicationBin = Join-Path $repoRoot "$Configuration\Orion_F303_sub_app.bin"
 $metadataBin = Join-Path $repoRoot "$Configuration\Orion_F303_sub_app.metadata.bin"
 $crcScript = Join-Path $scriptDir "orion_crc32c.py"
 if ([string]::IsNullOrWhiteSpace($BackupDirectory)) {
@@ -21,7 +21,7 @@ if ([string]::IsNullOrWhiteSpace($BackupDirectory)) {
 $logsRoot = [IO.Path]::GetFullPath((Join-Path $scriptDir "Logs")).TrimEnd('\') + '\'
 $backupFull = [IO.Path]::GetFullPath($BackupDirectory)
 if (-not $backupFull.StartsWith($logsRoot, [StringComparison]::OrdinalIgnoreCase)) { throw "BackupDirectory must be below $logsRoot" }
-foreach ($path in @($ProgrammerPath, $bootloaderHex, $applicationElf, $metadataBin, $crcScript)) {
+foreach ($path in @($ProgrammerPath, $bootloaderBin, $applicationBin, $metadataBin, $crcScript)) {
   if (-not (Test-Path $path)) { throw "Required file not found: $path" }
 }
 New-Item -ItemType Directory -Path $BackupDirectory -Force | Out-Null
@@ -29,7 +29,7 @@ $flashBackup = Join-Path $BackupDirectory "sub_flash_before_bootloader.bin"
 $optionBackup = Join-Path $BackupDirectory "option_bytes_before_bootloader.txt"
 $crcBackup = Join-Path $BackupDirectory "sub_flash_before_bootloader.crc32c.txt"
 $hotplug = "port=SWD mode=HOTPLUG"
-$underReset = "port=SWD mode=UR"
+$underReset = "port=SWD mode=UR freq=1000"
 if (-not [string]::IsNullOrWhiteSpace($ProbeSerial)) {
   $hotplug += " sn=$ProbeSerial"
   $underReset += " sn=$ProbeSerial"
@@ -51,10 +51,32 @@ if (-not $Execute) {
   Write-Output "Dry run completed. No Flash write or reset was performed."
   exit 0
 }
-& $ProgrammerPath -c $underReset -w $bootloaderHex -v
+$fullEraseSucceeded = $false
+foreach ($attempt in 1..3) {
+  $eraseOutput = & $ProgrammerPath -c $underReset -e all 2>&1
+  if ($LASTEXITCODE -eq 0) { $fullEraseSucceeded = $true; break }
+  Start-Sleep -Milliseconds 300
+}
+if (-not $fullEraseSucceeded) { throw "Full Flash erase failed after 3 attempts:`n$($eraseOutput -join "`n")" }
+Write-Output "Full Flash erase completed."
+& $ProgrammerPath -c $underReset --skipErase -w $bootloaderBin 0x08000000 -v
 if ($LASTEXITCODE) { throw "Bootloader write failed" }
-& $ProgrammerPath -c $underReset -w $applicationElf -v
+# STM32CubeProgrammer 2.22.0 can report a successful mass erase while an
+# immediate large program still contains stale bits. Re-erasing each page
+# individually is required for repeatable programming on this target.
+foreach ($sector in 8..39) {
+  $pageEraseSucceeded = $false
+  foreach ($attempt in 1..3) {
+    $eraseOutput = & $ProgrammerPath -c $underReset -e $sector 2>&1
+    if ($LASTEXITCODE -eq 0) { $pageEraseSucceeded = $true; break }
+    Start-Sleep -Milliseconds 300
+  }
+  if (-not $pageEraseSucceeded) { throw "Application page erase failed: sector $sector`n$($eraseOutput -join "`n")" }
+}
+& $ProgrammerPath -c $underReset --skipErase -w $applicationBin 0x08004000 -v
 if ($LASTEXITCODE) { throw "Application write failed" }
-& $ProgrammerPath -c $underReset -w $metadataBin 0x0801F800 -v -rst
+$eraseOutput = & $ProgrammerPath -c $underReset -e 63 2>&1
+if ($LASTEXITCODE) { throw "Metadata page erase failed:`n$($eraseOutput -join "`n")" }
+& $ProgrammerPath -c $underReset --skipErase -w $metadataBin 0x0801F800 -v -rst
 if ($LASTEXITCODE) { throw "Metadata write or reset failed" }
 Write-Output "F303 sub bootloader installation completed."

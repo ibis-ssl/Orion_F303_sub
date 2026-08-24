@@ -172,6 +172,7 @@ volatile float serv_angle = 0, dribbler_speed = 0;
 volatile int servo_timeout_cnt = 0, dribbler_timeout_cnt = 0;
 volatile float battery_voltage = 0;
 volatile uint32_t can_rx_cnt = 0;
+static volatile bool firmware_update_requested = false;
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef * hcan)
 {
   can_msg_buf_t can_rx_buf;
@@ -182,6 +183,11 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef * hcan)
   }
 
   can_rx_cnt++;
+  if (can_rx_header.StdId == 0x600U && can_rx_header.DLC == 8U &&
+      memcmp(can_rx_buf.data, "OFWUP", 5U) == 0 && can_rx_buf.data[5] == 4U) {
+    firmware_update_requested = true;
+    return;
+  }
   switch (can_rx_header.StdId) {
     case 0x104:
       dribbler_timeout_cnt = 0;
@@ -201,6 +207,29 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef * hcan)
 }
 
 int32_t ball_detect[2] = {0, 0};
+
+static void enter_firmware_update(void)
+{
+  HAL_TIM_Base_Stop_IT(&htim17);
+  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_4);
+  htim3.Instance->CCR3 = 0U;
+  htim3.Instance->CCR4 = 0U;
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0 | GPIO_PIN_1, GPIO_PIN_RESET);
+  HAL_CAN_Stop(&hcan);
+  HAL_FLASH_Unlock();
+  FLASH_EraseInitTypeDef erase = {0};
+  uint32_t page_error = 0U;
+  erase.TypeErase = FLASH_TYPEERASE_PAGES;
+  erase.PageAddress = 0x0801F800U;
+  erase.NbPages = 1U;
+  if (HAL_FLASHEx_Erase(&erase, &page_error) != HAL_OK) {
+    HAL_FLASH_Lock();
+    Error_Handler();
+  }
+  HAL_FLASH_Lock();
+  NVIC_SystemReset();
+}
 
 void ball_sensor(void)
 {
@@ -431,6 +460,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    if (firmware_update_requested) {
+      enter_firmware_update();
+    }
   }
   /* USER CODE END 3 */
 }

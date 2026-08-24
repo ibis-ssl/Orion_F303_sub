@@ -10,7 +10,7 @@ CPU_FLAGS := -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 CFLAGS := $(CPU_FLAGS) -std=gnu11 -DSTM32F303xC -O2 -g3 -Wall -Wextra -Werror -ffunction-sections -fdata-sections -fstack-usage
 CFLAGS += -IInc -I../Drivers/CMSIS/Device/ST/STM32F3xx/Include -I../Drivers/CMSIS/Include
 LDFLAGS := $(CPU_FLAGS) -TSTM32F303CBTX_BOOT.ld -nostartfiles --specs=nano.specs --specs=nosys.specs -Wl,-Map=$(TARGET).map -Wl,--gc-sections -Wl,--print-memory-usage
-OBJS := $(BUILD_DIR)/startup.o $(BUILD_DIR)/main.o $(BUILD_DIR)/system_boot.o $(BUILD_DIR)/board_io.o $(BUILD_DIR)/boot_crc32c.o $(BUILD_DIR)/boot_image.o
+OBJS := $(BUILD_DIR)/startup.o $(BUILD_DIR)/main.o $(BUILD_DIR)/system_boot.o $(BUILD_DIR)/board_io.o $(BUILD_DIR)/boot_crc32c.o $(BUILD_DIR)/boot_image.o $(BUILD_DIR)/boot_can_update.o
 
 .PHONY: all clean
 all: $(TARGET).elf $(TARGET).bin $(TARGET).hex $(TARGET).list

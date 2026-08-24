@@ -20,8 +20,8 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
 $buildDir = Join-Path $repoRoot $Configuration
 $makefilePath = Join-Path $buildDir "makefile"
-$connection = "port=SWD mode=UR"
-$hotplug = "port=SWD mode=HOTPLUG"
+$connection = "port=SWD mode=UR freq=1000"
+$hotplug = "port=SWD mode=HOTPLUG freq=1000"
 if (-not [string]::IsNullOrWhiteSpace($ProbeSerial)) {
   $connection += " sn=$ProbeSerial"
   $hotplug += " sn=$ProbeSerial"
@@ -74,21 +74,24 @@ if ($LASTEXITCODE -ne 0 -or ($targetOutput -join "`n") -notmatch 'Device ID\s+: 
   throw "Expected STM32F303xB/C target (0x422) was not detected; no write was performed."
 }
 
-$programmerArgs = @(
-  "-c", $connection,
-  "-w", $elfPath
-)
+$applicationBin = Join-Path $buildDir "Orion_F303_sub_app.bin"
+if (-not (Test-Path $applicationBin)) { throw "Application binary not found: $applicationBin. Run build_application.ps1 first." }
 
-if (-not $NoVerify) {
-  $programmerArgs += "-v"
+# Invalidate commit metadata before modifying any application page.
+$eraseOutput = & $ProgrammerPath -c $connection -e 63 2>&1
+if ($LASTEXITCODE) { throw "Metadata page erase failed:`n$($eraseOutput -join "`n")" }
+foreach ($sector in 8..39) {
+  $eraseOutput = & $ProgrammerPath -c $connection -e $sector 2>&1
+  if ($LASTEXITCODE) { throw "Application page erase failed: sector $sector`n$($eraseOutput -join "`n")" }
 }
+Write-Output "Metadata page 63 and application pages 8..39 erased."
 
+$programmerArgs = @("-c", $connection, "--skipErase", "-w", $applicationBin, "0x08004000")
+if (-not $NoVerify) { $programmerArgs += "-v" }
 & $ProgrammerPath @programmerArgs
-if ($LASTEXITCODE -ne 0) {
-  throw "Flash failed for $Configuration"
-}
+if ($LASTEXITCODE -ne 0) { throw "Flash failed for $Configuration" }
 
-$metadataArgs = @("-c", $connection, "-w", $metadataPath, "0x0801F800")
+$metadataArgs = @("-c", $connection, "--skipErase", "-w", $metadataPath, "0x0801F800")
 if (-not $NoVerify) { $metadataArgs += "-v" }
 if (-not $NoReset) { $metadataArgs += "-rst" }
 & $ProgrammerPath @metadataArgs
