@@ -25,6 +25,8 @@ if ($LASTEXITCODE) { throw "F303 sub application build failed" }
 if (-not (Test-Path $elfPath) -or -not (Test-Path $mapPath)) { throw "Application artifacts missing" }
 if ($null -eq (Select-String -Path $mapPath -Pattern '^FLASH\s+0x08004000\s+0x0001b800' | Select-Object -First 1)) { throw "Link map is not configured for the application region" }
 if (-not (Test-Path $ToolchainBin)) { throw "GNU toolchain not found: $ToolchainBin" }
+& python (Join-Path $scriptDir "stamp_fw_version.py") $elfPath --objcopy (Join-Path $ToolchainBin "arm-none-eabi-objcopy.exe") --repo $repoRoot --target sub --log-dir (Join-Path $scriptDir "Logs\Build")
+if ($LASTEXITCODE) { throw "FW version stamping failed" }
 & (Join-Path $ToolchainBin "arm-none-eabi-objcopy.exe") -O binary $elfPath $binPath
 if ($LASTEXITCODE) { throw "objcopy failed" }
 & python (Join-Path $scriptDir "generate_boot_metadata.py") $binPath $metadataPath --generation $Generation

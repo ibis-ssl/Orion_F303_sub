@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "fw_version.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,6 +55,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+const fw_version_t g_fw_version __attribute__((section(".fw_version"), used)) = {FW_VERSION_MAGIC, 0U};
 #define BALL_DETECTOR_THRESH (2000)
 
 #define USER_SW_SERVO_PULSE_WITDH (500)
@@ -183,6 +185,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef * hcan)
   }
 
   can_rx_cnt++;
+  if (can_rx_header.StdId == 0x611U && can_rx_header.DLC == 8U && can_rx_buf.data[0] == 4U) {
+    can_msg_buf_t reply = {0};
+    const uint32_t image_crc = *(const uint32_t *)(UINT32_C(0x0801F800) + 28U);
+    const uint32_t build_id = fw_version_build_id();
+    memcpy(&reply.data[0], &build_id, sizeof(uint32_t));
+    memcpy(&reply.data[4], &image_crc, sizeof(uint32_t));
+    can_send(0x664U, reply);
+    return;
+  }
   if (can_rx_header.StdId == 0x600U && can_rx_header.DLC == 8U &&
       memcmp(can_rx_buf.data, "OFWUP", 5U) == 0 && can_rx_buf.data[5] == 4U) {
     firmware_update_requested = true;

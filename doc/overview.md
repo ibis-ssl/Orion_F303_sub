@@ -78,3 +78,9 @@ Releaseを使用する前にCubeIDEでRelease構成のmakefileを再生成し、
 アプリケーション処理の多くは `Core/Src/main.c` の `USER CODE` 範囲内にある。
 CubeMXからコードを再生成した場合は、ビルドだけでなくCAN送受信、2 kHz周期、PWM、
 UART DMA出力が維持されていることを確認する。
+
+## 開発用FW識別
+
+- アプリ先頭`0x08004000`から`+0x400`に`FWVR` magicとUnix秒build IDを配置する。
+- CAN ID `0x611`でnode 4を指定すると、`0x664`でbuild IDとmetadataのimage CRC32Cを返す。値はリンク後に更新されるため、build IDは固定Flashアドレスからvolatile読出しする。
+- アプリ／bootloaderビルド時は`Script/Logs/Build/`へGit hashとdirty状態をJSON保存する。2026-08-27にCM4→Main→CAN経由更新後、期待バイナリとの`SAME`一致を実機確認した。

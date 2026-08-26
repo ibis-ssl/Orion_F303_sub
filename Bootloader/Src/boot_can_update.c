@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #define CAN_COMMAND_ID UINT32_C(0x610)
+#define CAN_VERSION_ID UINT32_C(0x611)
 #define CAN_DATA_ID_BASE UINT32_C(0x480)
 #define CAN_DATA_ID_LAST UINT32_C(0x4FF)
 #define CAN_RESPONSE_ID UINT32_C(0x654)
@@ -53,7 +54,7 @@ static void can_init(void)
   CAN->FM1R = 0U; /* 32-bit mask filters: exact command and data-ID range. */
   CAN->FFA1R = 0U;
   CAN->sFilterRegister[0].FR1 = CAN_COMMAND_ID << 21U;
-  CAN->sFilterRegister[0].FR2 = UINT32_C(0x7FF) << 21U;
+  CAN->sFilterRegister[0].FR2 = UINT32_C(0x7FE) << 21U;
   CAN->sFilterRegister[1].FR1 = CAN_DATA_ID_BASE << 21U;
   CAN->sFilterRegister[1].FR2 = UINT32_C(0x780) << 21U;
   CAN->FA1R = 3U;
@@ -115,6 +116,23 @@ static void can_send(const uint8_t data[8])
   mb->TDLR = (uint32_t)data[0] | ((uint32_t)data[1] << 8U) | ((uint32_t)data[2] << 16U) | ((uint32_t)data[3] << 24U);
   mb->TDHR = (uint32_t)data[4] | ((uint32_t)data[5] << 8U) | ((uint32_t)data[6] << 16U) | ((uint32_t)data[7] << 24U);
   mb->TIR = (CAN_RESPONSE_ID << 21U) | CAN_TI0R_TXRQ;
+}
+
+static void can_send_version(void)
+{
+  uint32_t build_id = 0U, image_crc = 0U;
+  const uint32_t * descriptor = (const uint32_t *)(BOOT_APP_BASE + UINT32_C(0x400));
+  if (boot_app_is_valid() && descriptor[0] == UINT32_C(0x52565746)) {
+    build_id = descriptor[1];
+    image_crc = *(const uint32_t *)(BOOT_METADATA_BASE + 28U);
+  }
+  const uint8_t data[8] = {(uint8_t)build_id,(uint8_t)(build_id>>8U),(uint8_t)(build_id>>16U),(uint8_t)(build_id>>24U),(uint8_t)image_crc,(uint8_t)(image_crc>>8U),(uint8_t)(image_crc>>16U),(uint8_t)(image_crc>>24U)};
+  while ((CAN->TSR & CAN_TSR_TME0) == 0U) {}
+  CAN_TxMailBox_TypeDef * mb = &CAN->sTxMailBox[0];
+  mb->TDTR = 8U;
+  mb->TDLR = (uint32_t)data[0]|((uint32_t)data[1]<<8U)|((uint32_t)data[2]<<16U)|((uint32_t)data[3]<<24U);
+  mb->TDHR = (uint32_t)data[4]|((uint32_t)data[5]<<8U)|((uint32_t)data[6]<<16U)|((uint32_t)data[7]<<24U);
+  mb->TIR = (UINT32_C(0x664) << 21U) | CAN_TI0R_TXRQ;
 }
 
 static void respond(uint8_t command, uint8_t status, uint32_t value)
@@ -236,7 +254,9 @@ bool boot_can_update_run(unsigned int idle_loops)
     can_drain_hardware();
     if (can_fifo_pop(&id, data)) {
       idle = 0U;
-      if (id == CAN_COMMAND_ID) {
+      if (id == CAN_VERSION_ID && data[0] == NODE_ID) {
+        can_send_version();
+      } else if (id == CAN_COMMAND_ID) {
         if (rx_overflow) { block_token = data[2]; rx_overflow = false; receiving = false; respond(data[0], STATUS_SEQUENCE, received); }
         else handle_command(data);
       }

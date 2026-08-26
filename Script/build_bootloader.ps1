@@ -27,3 +27,5 @@ foreach ($line in $sizeOutput) {
 if ($flashUsed -gt 0x4000) { throw "Bootloader exceeds 16KB: $flashUsed bytes" }
 Write-Output "Bootloader Flash usage: $flashUsed / 16384 bytes"
 Write-Output "Bootloader ELF: $elfPath"
+& python (Join-Path $scriptDir "stamp_fw_version.py") --log-only --repo $repoRoot --target sub_bootloader --log-dir (Join-Path $scriptDir "Logs\Build")
+if ($LASTEXITCODE) { throw "Bootloader build logging failed" }
