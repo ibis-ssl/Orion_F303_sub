@@ -84,3 +84,10 @@ UART DMA出力が維持されていることを確認する。
 - アプリ先頭`0x08004000`から`+0x400`に`FWVR` magicとUnix秒build IDを配置する。
 - CAN ID `0x611`でnode 4を指定すると、`0x664`でbuild IDとmetadataのimage CRC32Cを返す。値はリンク後に更新されるため、build IDは固定Flashアドレスからvolatile読出しする。
 - アプリ／bootloaderビルド時は`Script/Logs/Build/`へGit hashとdirty状態をJSON保存する。2026-08-27にCM4→Main→CAN経由更新後、期待バイナリとの`SAME`一致を実機確認した。
+
+## ブート時の更新判定
+
+- metadataとアプリ全体CRC32Cが有効なら、bootloaderはCANを初期化せず直ちにアプリへ遷移する。通常起動をCANトラフィックの有無に依存させない。
+- アプリはOTA開始要求を受けると安全出力へ遷移し、metadataを無効化してからresetする。無効な場合だけbootloaderがCAN更新を無期限に待つ。
+- 転送中断、CRC不一致、書込み途中のresetではmetadataを確定しないため、不完全なアプリを実行せず、CM4から再更新できる。
+- 2026-08-27にbootloaderを`-Werror`で再ビルドした。現時点でSub用ST-Linkは未接続のため、この起動判定版の実機導入は未実施である。
