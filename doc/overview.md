@@ -90,4 +90,4 @@ UART DMA出力が維持されていることを確認する。
 - metadataとアプリ全体CRC32Cが有効なら、bootloaderはCANを初期化せず直ちにアプリへ遷移する。通常起動をCANトラフィックの有無に依存させない。
 - アプリはOTA開始要求を受けると安全出力へ遷移し、metadataを無効化してからresetする。無効な場合だけbootloaderがCAN更新を無期限に待つ。
 - 転送中断、CRC不一致、書込み途中のresetではmetadataを確定しないため、不完全なアプリを実行せず、CM4から再更新できる。
-- 2026-08-27にbootloaderを`-Werror`で再ビルドした。現時点でSub用ST-Linkは未接続のため、この起動判定版の実機導入は未実施である。
+- 2026-08-27にbootloaderを`-Werror`で再ビルドし、ST-Linkで先頭領域へ書込み・verifyした。周期CAN通信中のresetでも直ちにUARTの`start sub board`と通常ログへ復帰した。続いてCM4→Main→CAN1で65,912 byteを14.132秒で更新し、起動カウンタ0からの再開、CAN受信、dribbler/servo出力0、期待CRC32C `0x30F89047`との`SAME`を確認した。
