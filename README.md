@@ -20,6 +20,9 @@ powershell -ExecutionPolicy Bypass -File .\Script\build_application.ps1 -Configu
 # 初回導入前のFlash/Option Bytes backup
 powershell -ExecutionPolicy Bypass -File .\Script\install_sub_bootloader.ps1 -ProbeSerial <SUB_STLINK_SN>
 
+# bootloader/application/metadataを一括書き込み（Debug、接続probeを自動選択）
+powershell -ExecutionPolicy Bypass -File .\Script\flash_all.ps1
+
 # USART1（2 Mbps）のログを表示
 powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM3
 ```
