@@ -13,7 +13,6 @@ param(
   [int]$Jobs = 4,
 
   [switch]$Rebuild,
-  [switch]$BootloaderInstalled,
   [switch]$NoVerify,
   [switch]$NoReset
 )
@@ -42,7 +41,6 @@ $flashArgs = @{
   Configuration = $Configuration
   ProgrammerPath = $ProgrammerPath
 }
-if (-not $BootloaderInstalled) { throw "Use install_sub_bootloader.ps1 -Execute first, or pass -BootloaderInstalled." }
 $flashArgs.BootloaderInstalled = $true
 if (-not [string]::IsNullOrWhiteSpace($ProbeSerial)) { $flashArgs.ProbeSerial = $ProbeSerial }
 if ($NoVerify) {
