@@ -24,6 +24,15 @@ if (-not $backupFull.StartsWith($logsRoot, [StringComparison]::OrdinalIgnoreCase
 foreach ($path in @($ProgrammerPath, $bootloaderBin, $applicationBin, $metadataBin, $crcScript)) {
   if (-not (Test-Path $path)) { throw "Required file not found: $path" }
 }
+$applicationSize = (Get-Item -LiteralPath $applicationBin).Length
+$applicationPageSize = 0x800
+$applicationFirstPage = 8
+$applicationMaxSize = 0x1B800
+if ($applicationSize -le 0 -or $applicationSize -gt $applicationMaxSize) {
+  throw "Application binary size is outside the application region: $applicationSize bytes"
+}
+$applicationLastPage = $applicationFirstPage + [Math]::Floor(($applicationSize - 1) / $applicationPageSize)
+$applicationPages = @($applicationFirstPage..$applicationLastPage)
 New-Item -ItemType Directory -Path $BackupDirectory -Force | Out-Null
 $flashBackup = Join-Path $BackupDirectory "sub_flash_before_bootloader.bin"
 $optionBackup = Join-Path $BackupDirectory "option_bytes_before_bootloader.txt"
@@ -62,21 +71,26 @@ Write-Output "Full Flash erase completed."
 & $ProgrammerPath -c $underReset --skipErase -w $bootloaderBin 0x08000000 -v
 if ($LASTEXITCODE) { throw "Bootloader write failed" }
 # STM32CubeProgrammer 2.22.0 can report a successful mass erase while an
-# immediate large program still contains stale bits. Re-erasing each page
-# individually is required for repeatable programming on this target.
-foreach ($sector in 8..39) {
-  $pageEraseSucceeded = $false
-  foreach ($attempt in 1..3) {
-    $eraseOutput = & $ProgrammerPath -c $underReset -e $sector 2>&1
-    if ($LASTEXITCODE -eq 0) { $pageEraseSucceeded = $true; break }
-    Start-Sleep -Milliseconds 300
+# immediate large program still contains stale bits. Re-erase every page used
+# by the application. A sector list avoids reconnecting for every page.
+$eraseArgs = @("-c", $underReset, "-e") + $applicationPages
+$eraseOutput = & $ProgrammerPath @eraseArgs 2>&1
+if ($LASTEXITCODE) {
+  Write-Warning "Batch application page erase failed; retrying one page at a time."
+  foreach ($sector in $applicationPages) {
+    $pageEraseSucceeded = $false
+    foreach ($attempt in 1..3) {
+      $eraseOutput = & $ProgrammerPath -c $underReset -e $sector 2>&1
+      if ($LASTEXITCODE -eq 0) { $pageEraseSucceeded = $true; break }
+      Start-Sleep -Milliseconds 300
+    }
+    if (-not $pageEraseSucceeded) { throw "Application page erase failed: sector $sector`n$($eraseOutput -join "`n")" }
   }
-  if (-not $pageEraseSucceeded) { throw "Application page erase failed: sector $sector`n$($eraseOutput -join "`n")" }
 }
-& $ProgrammerPath -c $underReset --skipErase -w $applicationBin 0x08004000 -v
+& $ProgrammerPath -c $underReset --skipErase -w $applicationBin 0x08004000 -v fast
 if ($LASTEXITCODE) { throw "Application write failed" }
 $eraseOutput = & $ProgrammerPath -c $underReset -e 63 2>&1
 if ($LASTEXITCODE) { throw "Metadata page erase failed:`n$($eraseOutput -join "`n")" }
-& $ProgrammerPath -c $underReset --skipErase -w $metadataBin 0x0801F800 -v -rst
+& $ProgrammerPath -c $underReset --skipErase -w $metadataBin 0x0801F800 -v fast -rst
 if ($LASTEXITCODE) { throw "Metadata write or reset failed" }
 Write-Output "F303 sub bootloader installation completed."

@@ -75,4 +75,4 @@ backup確認後だけ`-Execute`を付ける。Device IDがF303xB/Cの`0x422`で�
 - ST-Link readback 65,168 byteのCRC32Cが`0xF692FBA9`で送信imageと一致
 - 更新後VTOR=`0x08004000`、COM167で2秒間2,646 byteのログとCAN受信カウンタ更新を確認
 
-STM32CubeProgrammer 2.22.0ではF303の複数page範囲消去が失敗し、全消去直後の大容量programでもbit不一致が発生した。通常更新と初回導入の両方でpage 8～39を個別消去してからapplicationをprogramする。128 KB統合BINはアドレス誤配置も確認されたため使用禁止とする。
+STM32CubeProgrammer 2.22.0ではF303の複数page範囲消去が失敗し、全消去直後の大容量programでもbit不一致が発生した。通常更新と初回導入の両方で、applicationサイズから使用pageを算出し、page番号を列挙した1回の消去後にapplicationをprogramする。列挙消去が失敗した場合のみ個別消去へfallbackする。128 KB統合BINはアドレス誤配置も確認されたため使用禁止とする。
