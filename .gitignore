@@ -56,3 +56,4 @@ dkms.conf
 *.bin
 Script/Logs/
 Script/__pycache__/
+.vscode/compile_commands_*.json

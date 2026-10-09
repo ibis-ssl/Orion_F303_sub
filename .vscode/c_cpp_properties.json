@@ -1,24 +1,76 @@
 {
-    "configurations": [
-        {
-            "name": "Win32",
-            "includePath": [
-                "${default}",
-                "${workspaceFolder}/**",
-                "C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\14.2 rel1\\arm-none-eabi\\include**",
-                "C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\14.2 rel1\\lib\\gcc\\arm-none-eabi\\14.2.1\\include"
-            ],
-            "intelliSenseMode": "windows-gcc-arm",
-            "defines": [
-                "USE_HAL_DRIVER",
-                "STM32F303xC",
-                "DEBUG",
-                "M_PI = 3.1415"
-            ],
-            "cStandard": "c11",
-            "cppStandard": "c++11",
-            "compilerPath": "C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\14.2 rel1\\bin\\arm-none-eabi-gcc"
-        }
-    ],
-    "version": 4
+    "configurations":  [
+                           {
+                               "name":  "STM32 Debug",
+                               "includePath":  [
+                                                   "${workspaceFolder}/Core/Inc",
+                                                   "${workspaceFolder}/Drivers/STM32F3xx_HAL_Driver/Inc",
+                                                   "${workspaceFolder}/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy",
+                                                   "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F3xx/Include",
+                                                   "${workspaceFolder}/Drivers/CMSIS/Include"
+                                               ],
+                               "intelliSenseMode":  "windows-gcc-arm",
+                               "defines":  [
+                                               "USE_HAL_DRIVER",
+                                               "STM32F303xC",
+                                               "DEBUG"
+                                           ],
+                               "cStandard":  "gnu11",
+                               "cppStandard":  "gnu++14",
+                               "compilerPath":  "C:/ST/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/arm-none-eabi-gcc.exe",
+                               "compilerArgs":  [
+                                                    "-mcpu=cortex-m4",
+                                                    "-mthumb",
+                                                    "-mfpu=fpv4-sp-d16",
+                                                    "-mfloat-abi=hard",
+                                                    "--specs=nano.specs"
+                                                ],
+                               "compileCommands":  "${workspaceFolder}/.vscode/compile_commands_Debug.json",
+                               "browse":  {
+                                              "path":  [
+                                                           "${workspaceFolder}/Core",
+                                                           "${workspaceFolder}/Drivers",
+                                                           "${workspaceFolder}/Bootloader/Inc",
+                                                           "${workspaceFolder}/Bootloader/Src"
+                                                       ],
+                                              "limitSymbolsToIncludedHeaders":  true
+                                          }
+                           },
+                           {
+                               "name":  "STM32 Release",
+                               "includePath":  [
+                                                   "${workspaceFolder}/Core/Inc",
+                                                   "${workspaceFolder}/Drivers/STM32F3xx_HAL_Driver/Inc",
+                                                   "${workspaceFolder}/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy",
+                                                   "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F3xx/Include",
+                                                   "${workspaceFolder}/Drivers/CMSIS/Include"
+                                               ],
+                               "intelliSenseMode":  "windows-gcc-arm",
+                               "defines":  [
+                                               "USE_HAL_DRIVER",
+                                               "STM32F303xC"
+                                           ],
+                               "cStandard":  "gnu11",
+                               "cppStandard":  "gnu++14",
+                               "compilerPath":  "C:/ST/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/arm-none-eabi-gcc.exe",
+                               "compilerArgs":  [
+                                                    "-mcpu=cortex-m4",
+                                                    "-mthumb",
+                                                    "-mfpu=fpv4-sp-d16",
+                                                    "-mfloat-abi=hard",
+                                                    "--specs=nano.specs"
+                                                ],
+                               "compileCommands":  "${workspaceFolder}/.vscode/compile_commands_Release.json",
+                               "browse":  {
+                                              "path":  [
+                                                           "${workspaceFolder}/Core",
+                                                           "${workspaceFolder}/Drivers",
+                                                           "${workspaceFolder}/Bootloader/Inc",
+                                                           "${workspaceFolder}/Bootloader/Src"
+                                                       ],
+                                              "limitSymbolsToIncludedHeaders":  true
+                                          }
+                           }
+                       ],
+    "version":  4
 }

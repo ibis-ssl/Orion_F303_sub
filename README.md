@@ -34,3 +34,26 @@ powershell -ExecutionPolicy Bypass -File .\Script\monitor_uart.ps1 -Port COM3
 `flash.ps1` の `-ProgrammerPath` で実行ファイルを指定してください。
 
 ファームウェアの役割、通信ID、主要周期は [doc/overview.md](doc/overview.md) を参照してください。
+
+## VS Codeでのコードブラウズ
+
+このフォルダーをVS Codeで開き、MicrosoftのC/C++拡張機能
+(`ms-vscode.cpptools`) を使用します。初回やビルド設定・ソースを変更した後は、
+次のコマンド、または「タスクの実行」→ `Refresh C/C++ browse configuration`
+を実行してください。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Script\setup_vscode.ps1
+```
+
+スクリプトはDebug/ReleaseとBootloaderのMakefileをdry-runし、ファイルごとの
+includeパス、定義、ARM GCCの引数を解析用データベースに反映します。
+ビルドや書き込みは行いません。生成JSONはマシン固有の絶対パスを含むためGit管理対象外です。
+ARM GCCはPATHから検索します。別のインストール先は `-CompilerPath` と `-MakePath`
+で指定できます。
+
+このワークスペースではC/C++ IntelliSenseを有効にし、STM32 clangdを無効にしています。
+`C/C++: Select a Configuration` で `STM32 Debug` / `STM32 Release` を選択できます。
+どちらもBootloaderには専用のコンパイル条件を適用します。
+設定後は必要に応じて `Developer: Reload Window` を実行し、解析完了を待ってください。
+`F12` で定義へ移動、`Shift+F12` で参照検索、`Ctrl+Space` で補完候補を表示できます。
